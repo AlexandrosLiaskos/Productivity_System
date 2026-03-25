@@ -16,7 +16,7 @@ export async function listEntries({ project, type } = {}) {
     : (await readdir(PROJECTS_DIR)).filter(d => !d.startsWith('.'));
 
   for (const dir of projectDirs) {
-    const dirPath = join(PROJECTS_DIR, dir);
+    const dirPath = safePath(PROJECTS_DIR, dir);
     try {
       const dirStat = await stat(dirPath);
       if (!dirStat.isDirectory()) continue;
@@ -54,7 +54,7 @@ export async function listEntries({ project, type } = {}) {
  * @returns {Promise<object|null>}
  */
 export async function readEntry(project, filename) {
-  const filePath = join(PROJECTS_DIR, project, filename);
+  const filePath = safePath(PROJECTS_DIR, project, filename);
   const parsed = parseFilename(filename);
   if (!parsed) return null;
 
@@ -77,7 +77,7 @@ export async function readEntry(project, filename) {
 export async function createEntry(data) {
   const title = sanitizeTitle(data.title);
   const filename = buildFilename({ title, type: data.type, author: data.author, date: data.date });
-  const filePath = join(PROJECTS_DIR, data.project, filename);
+  const filePath = safePath(PROJECTS_DIR, data.project, filename);
 
   if (data.type === 'note') {
     await writeFile(filePath, data.body || '', 'utf-8');
@@ -111,8 +111,8 @@ export async function updateEntry(project, oldFilename, updates) {
   };
   const newFilename = buildFilename(newParts);
 
-  const oldPath = join(PROJECTS_DIR, project, oldFilename);
-  const newPath = join(PROJECTS_DIR, project, newFilename);
+  const oldPath = safePath(PROJECTS_DIR, project, oldFilename);
+  const newPath = safePath(PROJECTS_DIR, project, newFilename);
 
   if (newParts.type === 'note') {
     await writeFile(newPath, updates.body || '', 'utf-8');
@@ -143,7 +143,7 @@ export async function updateEntry(project, oldFilename, updates) {
  * @param {string} filename
  */
 export async function deleteEntry(project, filename) {
-  await unlink(join(PROJECTS_DIR, project, filename));
+  await unlink(safePath(PROJECTS_DIR, project, filename));
 }
 
 /**

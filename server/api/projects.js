@@ -2,7 +2,7 @@
 
 import { readdir, mkdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PROJECTS_DIR, readJSON, writeJSON, parseFilename } from './utils.js';
+import { PROJECTS_DIR, readJSON, writeJSON, parseFilename, safePath } from './utils.js';
 
 /**
  * List all projects with metadata and entry counts.
@@ -35,7 +35,7 @@ export async function listProjects() {
  * @returns {Promise<object|null>}
  */
 export async function getProject(name) {
-  return readJSON(join(PROJECTS_DIR, name, '.project.json'));
+  return readJSON(safePath(PROJECTS_DIR, name, '.project.json'));
 }
 
 /**
@@ -44,9 +44,9 @@ export async function getProject(name) {
  * @returns {Promise<void>}
  */
 export async function createProject(meta) {
-  const dirPath = join(PROJECTS_DIR, meta.name);
+  const dirPath = safePath(PROJECTS_DIR, meta.name);
   await mkdir(dirPath, { recursive: true });
-  await writeJSON(join(dirPath, '.project.json'), meta);
+  await writeJSON(safePath(PROJECTS_DIR, meta.name, '.project.json'), meta);
 }
 
 /**
@@ -56,7 +56,7 @@ export async function createProject(meta) {
  * @returns {Promise<void>}
  */
 export async function updateProject(name, updates) {
-  const metaPath = join(PROJECTS_DIR, name, '.project.json');
+  const metaPath = safePath(PROJECTS_DIR, name, '.project.json');
   const existing = (await readJSON(metaPath)) || {};
   await writeJSON(metaPath, { ...existing, ...updates });
 }
