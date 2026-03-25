@@ -30,17 +30,13 @@ export async function cycleStatus(entry) {
  * @returns {object[]}
  */
 export function getFilteredEntries() {
-  const { entries, filters, searchQuery, searchResults } = getState();
+  const { entries, searchQuery, searchResults } = getState();
 
   if (searchQuery && searchQuery.trim()) {
     return searchResults;
   }
 
-  return entries.filter(entry => {
-    if (filters.project && entry.project !== filters.project) return false;
-    if (filters.type && entry.type !== filters.type) return false;
-    return true;
-  });
+  return entries;
 }
 
 /**
@@ -125,7 +121,6 @@ export function initTimeline() {
   const rerender = () => renderTable(getFilteredEntries());
 
   subscribe('entries', rerender);
-  subscribe('filters', rerender);
   subscribe('searchResults', rerender);
   subscribe('searchQuery', rerender);
   subscribe('selectedRow', () => {

@@ -65,6 +65,34 @@ export function initHotkeys() {
       return;
     }
 
+    // Ctrl+P — focus search and insert project: tag
+    if (e.ctrlKey && e.key === 'p') {
+      e.preventDefault();
+      const input = document.getElementById('search-input');
+      if (input) {
+        input.focus();
+        if (!input.value.includes('project:')) {
+          input.value = (input.value.trimEnd() + (input.value ? ' ' : '') + 'project:').trimStart();
+          input.dispatchEvent(new Event('input'));
+        }
+      }
+      return;
+    }
+
+    // Ctrl+T — focus search and insert type: tag
+    if (e.ctrlKey && e.key === 't') {
+      e.preventDefault();
+      const input = document.getElementById('search-input');
+      if (input) {
+        input.focus();
+        if (!input.value.includes('type:')) {
+          input.value = (input.value.trimEnd() + (input.value ? ' ' : '') + 'type:').trimStart();
+          input.dispatchEvent(new Event('input'));
+        }
+      }
+      return;
+    }
+
     // Ctrl+N — open create modal
     if (e.ctrlKey && e.key === 'n') {
       e.preventDefault();

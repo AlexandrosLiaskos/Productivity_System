@@ -70,6 +70,7 @@ body {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  position: relative;
 }
 
 #search-input {
@@ -148,58 +149,52 @@ button:focus-visible {
   }
 }
 
-/* --- Filters / Nav --- */
-#filters {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+/* --- Tag Autocomplete --- */
+#tag-autocomplete {
+  position: fixed;
   background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 210;
+  box-shadow: 2px 4px 0 var(--fg);
 }
 
-.filter-group {
+#tag-autocomplete-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#tag-autocomplete-list li {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 1px solid #eee;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  justify-content: space-between;
   align-items: center;
 }
 
-.filter-label {
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #555;
-  margin-right: 4px;
-  white-space: nowrap;
+#tag-autocomplete-list li:last-child {
+  border-bottom: none;
 }
 
-.filter-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--fg);
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.filter-tag:hover {
+#tag-autocomplete-list li:hover,
+#tag-autocomplete-list li.selected {
   background: var(--bg-hover);
 }
 
-.filter-tag.active {
-  background: var(--bg-active);
-  color: var(--fg-active);
+#tag-autocomplete-list li .tag-count {
+  font-size: 10px;
+  color: #888;
 }
 
-@media (min-width: 768px) {
-  #filters {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-  }
+#tag-autocomplete-list li .tag-prefix {
+  font-size: 10px;
+  color: #888;
+  margin-right: 6px;
 }
 
 /* --- Timeline Table --- */
@@ -731,10 +726,10 @@ button:focus-visible {
 /* --- Print --- */
 @media print {
   #header-actions,
-  #filters,
   #modal-overlay,
   #history-panel,
-  #search-results {
+  #search-results,
+  #tag-autocomplete {
     display: none !important;
   }
 }
