@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   packagerConfig: {
     name: 'ProductivitySystem',
     executableName: 'productivity-system',
