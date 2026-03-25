@@ -1,0 +1,8 @@
+{
+  "status": "in_progress",
+  "deadline": null,
+  "body": "Design and implement the custom long-term productivity logging system. Define JSON schemas for tasks and logs, markdown format for notes, folder structure (projects as the single hierarchy level), and filename conventions (Title.type.author.YYYYMMDD.ext). Set up git-tracked repository with GitHub hosting. Implement entry types (tasks, logs, notes) with task states (in progress, queued, on hold, completed, canceled). Establish project metadata with GitHub URL references. Ensure portability, traceability, reusability, and separation of concerns between logging data and project source code.",
+  "references": {
+    "origin_note": "Productivity_System.note.liaskos.20260325.md"
+  }
+}
