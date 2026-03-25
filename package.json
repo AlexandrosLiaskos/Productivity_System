@@ -1,0 +1,9 @@
+{
+  "name": "productivity-system",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Long-term productivity logging system",
+  "scripts": {
+    "start": "node server/server.js"
+  }
+}
