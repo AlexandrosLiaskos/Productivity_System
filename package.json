@@ -1,9 +1,23 @@
 {
   "name": "productivity-system",
+  "productName": "Productivity System",
   "version": "1.0.0",
   "type": "module",
   "description": "Long-term productivity logging system",
+  "author": "Alexandros Liaskos",
+  "license": "MIT",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node server/server.js"
+    "start": "node server/server.js",
+    "electron:dev": "electron .",
+    "electron:package": "electron-forge package",
+    "electron:make": "electron-forge make"
+  },
+  "devDependencies": {
+    "electron": "^35.0.1",
+    "@electron-forge/cli": "^7.8.0",
+    "@electron-forge/maker-squirrel": "^7.8.0",
+    "@electron-forge/maker-zip": "^7.8.0",
+    "@electron-forge/maker-deb": "^7.8.0"
   }
 }

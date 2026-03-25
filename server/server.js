@@ -2,15 +2,21 @@
 
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, resolve, normalize } from 'node:path';
+import { join, extname, resolve, normalize, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ROOT, parseBody, sendJSON } from './api/utils.js';
 import * as entries from './api/entries.js';
 import * as projects from './api/projects.js';
 import * as git from './api/git.js';
 import * as actions from './api/actions.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const PORT = process.env.PORT || 3000;
-const APP_DIR = join(ROOT, 'app');
+// APP_DIR is always relative to server.js so it works both in dev and in the
+// packaged Electron app (where ROOT points to the user's data directory).
+const APP_DIR = join(__dirname, '..', 'app');
 
 const MIME = {
   '.html': 'text/html',

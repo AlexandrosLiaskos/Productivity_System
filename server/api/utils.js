@@ -7,8 +7,8 @@ import { dirname } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/** Root of the Productivity_System repo */
-export const ROOT = join(__dirname, '..', '..');
+/** Root data directory — configurable via PRODUCTIVITY_SYSTEM_DIR env var */
+export const ROOT = process.env.PRODUCTIVITY_SYSTEM_DIR || join(__dirname, '..', '..');
 
 /** Path to the projects data directory */
 export const PROJECTS_DIR = join(ROOT, 'projects');
