@@ -17,7 +17,7 @@ export const PROJECTS_DIR = join(ROOT, 'projects');
 export const HISTORY_PATH = join(ROOT, 'actions', 'history.json');
 
 /** Filename parsing regex */
-const FILENAME_RE = /^(.+)\.(task|log|note)\.(?:([a-z]+)\.)?(\d{8})\.(json|md)$/;
+const FILENAME_RE = /^(.+)\.(task|log|note|email)\.(?:([a-z]+)\.)?(\d{8})\.(json|md|msg)$/;
 
 /**
  * Parse an entry filename into its components.
@@ -36,7 +36,7 @@ export function parseFilename(filename) {
  * @returns {string}
  */
 export function buildFilename({ title, type, author, date }) {
-  const ext = type === 'note' ? 'md' : 'json';
+  const ext = type === 'note' ? 'md' : type === 'email' ? 'msg' : 'json';
   const segments = [title, type];
   if (author) segments.push(author);
   segments.push(date);
@@ -108,6 +108,19 @@ export function sendJSON(res, status, data) {
  */
 export function sanitizeTitle(raw) {
   return raw.trim().replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-]/g, '');
+}
+
+/**
+ * Sanitize an email subject for use in filenames.
+ * Like sanitizeTitle but with 80-char max and empty-subject fallback.
+ * @param {string} raw - original email subject line
+ * @returns {string}
+ */
+export function sanitizeEmailSubject(raw) {
+  let sanitized = sanitizeTitle(raw);
+  if (!sanitized) sanitized = 'no_subject';
+  if (sanitized.length > 80) sanitized = sanitized.slice(0, 80);
+  return sanitized;
 }
 
 /**

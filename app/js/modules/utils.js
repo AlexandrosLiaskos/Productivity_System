@@ -1,7 +1,7 @@
 /** @module app/js/modules/utils */
 
 /** Filename parsing regex — matches {Title}.{type}[.{author}].{YYYYMMDD}.{ext} */
-const FILENAME_RE = /^(.+)\.(task|log|note)\.(?:([a-z]+)\.)?(\d{8})\.(json|md)$/;
+const FILENAME_RE = /^(.+)\.(task|log|note|email)\.(?:([a-z]+)\.)?(\d{8})\.(json|md|msg)$/;
 
 /**
  * Parse an entry filename into its components.

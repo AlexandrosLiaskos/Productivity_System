@@ -53,7 +53,7 @@ const HISTORY_PATH = join(ROOT, 'actions', 'history.json');
 // ---------------------------------------------------------------------------
 
 /** Filename parsing regex */
-const FILENAME_RE = /^(.+)\.(task|log|note)\.(?:([a-z]+)\.)?(\d{8})\.(json|md)$/;
+const FILENAME_RE = /^(.+)\.(task|log|note|email)\.(?:([a-z]+)\.)?(\d{8})\.(json|md|msg)$/;
 
 /**
  * Parse an entry filename into its components.
@@ -72,7 +72,7 @@ function parseFilename(filename) {
  * @returns {string}
  */
 function buildFilename({ title, type, author, date }) {
-  const ext = type === 'note' ? 'md' : 'json';
+  const ext = type === 'note' ? 'md' : type === 'email' ? 'msg' : 'json';
   const segments = [title, type];
   if (author) segments.push(author);
   segments.push(date);
@@ -507,7 +507,7 @@ server.tool(
   'List entries with optional filters by project and/or type.',
   {
     project: z.string().optional().describe('Filter by project name'),
-    type: z.enum(['task', 'log', 'note']).optional().describe('Filter by entry type'),
+    type: z.enum(['task', 'log', 'note', 'email']).optional().describe('Filter by entry type'),
   },
   async ({ project, type }) => {
     try {
@@ -540,7 +540,7 @@ server.tool(
   {
     project: z.string().describe('Project name'),
     title: z.string().describe('Entry title (used in filename)'),
-    type: z.enum(['task', 'log', 'note']).describe('Entry type'),
+    type: z.enum(['task', 'log', 'note', 'email']).describe('Entry type'),
     date: z.string().regex(/^\d{8}$/).describe('Date in YYYYMMDD format'),
     author: z.string().optional().describe('Author identifier'),
     status: z.enum(['queued', 'in_progress', 'on_hold', 'completed', 'canceled']).optional().describe('Task status (tasks only)'),
