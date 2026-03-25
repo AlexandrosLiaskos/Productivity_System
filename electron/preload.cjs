@@ -23,3 +23,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('shortcut', (_event, action) => callback(action));
   },
 });
+
+// Expose Outlook bridge API.
+contextBridge.exposeInMainWorld('outlookAPI', {
+  /** Check whether Outlook is available on this machine. */
+  checkAvailable: () => ipcRenderer.invoke('outlook:check-available'),
+
+  /** Return the full folder tree from Outlook. */
+  listFolders: () => ipcRenderer.invoke('outlook:list-folders'),
+
+  /**
+   * List emails in a given folder.
+   * @param {string} folderPath
+   * @param {number} [limit]
+   */
+  listEmails: (folderPath, limit) => ipcRenderer.invoke('outlook:list-emails', { folderPath, limit }),
+
+  /**
+   * Fetch full preview content for a single email.
+   * @param {string} entryId
+   */
+  previewEmail: (entryId) => ipcRenderer.invoke('outlook:preview-email', { entryId }),
+
+  /**
+   * Log one or more emails to the productivity system.
+   * @param {{ emails: object[], project: string, author: string, references: string[] }} data
+   */
+  logEmails: (data) => ipcRenderer.invoke('outlook:log-emails', data),
+
+  /** Return the set of Outlook entry IDs already tracked in the system. */
+  getTrackedIds: () => ipcRenderer.invoke('outlook:get-tracked-ids'),
+});
