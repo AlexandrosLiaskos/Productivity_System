@@ -244,7 +244,101 @@ export function showCreateModal() {
 export function showDetailModal(entry) {
   const body = el('div', { class: 'detail-view' });
 
-  // Info table
+  if (entry.type === 'email') {
+    // ---- Email detail ----
+    const table = el('table', { class: 'detail-table' });
+    const rows = [
+      ['Filename', entry.filename],
+      ['Project', entry.project],
+      ['Type', 'email'],
+      ['From', entry.from || '—'],
+      ['To', Array.isArray(entry.to) ? entry.to.join(', ') : (entry.to || '—')],
+      ['CC', Array.isArray(entry.cc) ? entry.cc.join(', ') : (entry.cc || '—')],
+      ['Date', formatDate(entry.date)],
+      ['Author', entry.author || '—'],
+    ];
+    for (const [label, value] of rows) {
+      table.appendChild(el('tr', {},
+        el('th', {}, label),
+        el('td', {}, value)
+      ));
+    }
+    body.appendChild(table);
+
+    // Subject as a section heading
+    if (entry.subject) {
+      body.appendChild(el('hr', {}));
+      const subjectEl = el('div', { class: 'email-detail-subject' });
+      subjectEl.textContent = entry.subject;
+      body.appendChild(subjectEl);
+    }
+
+    // Body preview
+    if (entry.bodyPreview) {
+      body.appendChild(el('hr', {}));
+      const pre = el('pre', { class: 'entry-body-content' });
+      pre.textContent = entry.bodyPreview;
+      body.appendChild(pre);
+    }
+
+    // Attachments
+    const attachments = entry.attachments || [];
+    if (attachments.length > 0) {
+      body.appendChild(el('hr', {}));
+      body.appendChild(el('div', { class: 'email-detail-section-label' }, 'Attachments'));
+      const ul = el('ul', { class: 'email-detail-attachments' });
+      for (const att of attachments) {
+        const name = typeof att === 'string' ? att : (att.name || String(att));
+        ul.appendChild(el('li', {}, name));
+      }
+      body.appendChild(ul);
+    }
+
+    // Linked entries (references)
+    const references = entry.references || {};
+    const refEntries = Object.entries(references);
+    if (refEntries.length > 0) {
+      body.appendChild(el('hr', {}));
+      body.appendChild(el('div', { class: 'email-detail-section-label' }, 'Linked Entries'));
+      const refUl = el('ul', { class: 'email-detail-references' });
+      for (const [key, value] of refEntries) {
+        const values = Array.isArray(value) ? value : [value];
+        for (const v of values) {
+          refUl.appendChild(el('li', {}, `${key}: ${v}`));
+        }
+      }
+      body.appendChild(refUl);
+    }
+
+    const editBtn = el('button', { type: 'button', class: 'btn btn-primary' }, 'Edit');
+    editBtn.addEventListener('click', () => showEditModal(entry));
+
+    const deleteBtn = el('button', { type: 'button', class: 'btn btn-danger' }, 'Delete');
+    deleteBtn.addEventListener('click', () => {
+      showConfirmModal(
+        'Delete Email Entry',
+        `Delete "${humanizeTitle(entry.title)}"? This will remove the .msg file, metadata, and attachments.`,
+        async () => {
+          try {
+            await deleteEntry(entry.project, entry.filename);
+            closeModal();
+            document.dispatchEvent(new CustomEvent('data:refresh'));
+          } catch (err) {
+            alert('Error deleting entry: ' + err.message);
+          }
+        }
+      );
+    });
+
+    const closeBtn = el('button', { type: 'button', class: 'btn btn-secondary' }, 'Close');
+    closeBtn.addEventListener('click', closeModal);
+
+    const footer = el('div', { class: 'modal-footer-btns' }, editBtn, deleteBtn, closeBtn);
+    openModal(humanizeTitle(entry.title), body, footer);
+    return;
+  }
+
+  // ---- Standard (task / log / note) detail ----
   const table = el('table', { class: 'detail-table' });
   const rows = [
     ['Filename', entry.filename],
@@ -316,6 +410,62 @@ export function showDetailModal(entry) {
  * @returns {void}
  */
 export function showEditModal(entry) {
+  // ---- Email edit: only references are editable ----
+  if (entry.type === 'email') {
+    const { entries } = getState();
+    const form = el('form', { class: 'modal-form', id: 'edit-form' });
+
+    // Linked Entries dropdown (non-email entries in same project)
+    const linkedEntriesRow = el('div', { class: 'form-row' });
+    linkedEntriesRow.appendChild(el('label', { for: 'edit-email-linked-entry' }, 'Linked Entry (optional)'));
+    const linkedEntrySelect = el('select', { id: 'edit-email-linked-entry' });
+    linkedEntrySelect.appendChild(el('option', { value: '' }, '— none —'));
+    const projectEntries = entries.filter(e => e.project === entry.project && e.type !== 'email');
+    for (const e of projectEntries) {
+      const opt = el('option', { value: e.filename }, e.filename);
+      const currentLinked = entry.references && entry.references.linked_entry;
+      if (currentLinked === e.filename) opt.selected = true;
+      linkedEntrySelect.appendChild(opt);
+    }
+    linkedEntriesRow.appendChild(linkedEntrySelect);
+    form.appendChild(linkedEntriesRow);
+
+    const saveBtn = el('button', { type: 'button', class: 'btn btn-primary' }, 'Save');
+    const cancelBtn = el('button', { type: 'button', class: 'btn btn-secondary' }, 'Cancel');
+    cancelBtn.addEventListener('click', () => showDetailModal(entry));
+
+    saveBtn.addEventListener('click', async () => {
+      const linkedEntry = linkedEntrySelect.value || null;
+      const references = { ...(entry.references || {}) };
+      if (linkedEntry) {
+        references.linked_entry = linkedEntry;
+      } else {
+        delete references.linked_entry;
+      }
+      const updates = { references };
+
+      saveBtn.disabled = true;
+      try {
+        await updateEntry(entry.project, entry.filename, updates);
+        closeModal();
+        document.dispatchEvent(new CustomEvent('data:refresh'));
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('entry:open', { detail: { ...entry, references } }));
+        }, 300);
+      } catch (err) {
+        alert('Error saving entry: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+
+    const footer = el('div', { class: 'modal-footer-btns' }, saveBtn, cancelBtn);
+    openModal('Edit — ' + humanizeTitle(entry.title), form, footer);
+    return;
+  }
+
+  // ---- Standard (task / log / note) edit ----
+  const { entries } = getState();
   const form = el('form', { class: 'modal-form', id: 'edit-form' });
 
   // Title
@@ -364,6 +514,26 @@ export function showEditModal(entry) {
   const bodyTextarea = el('textarea', { id: 'edit-body', name: 'body', rows: '8' });
   bodyTextarea.value = entry.body || '';
 
+  // Linked Emails (optional) — email entries in same project
+  const linkedEmailsRow = el('div', { class: 'form-row' });
+  linkedEmailsRow.appendChild(el('label', { for: 'edit-linked-emails' }, 'Linked Emails (optional)'));
+  const linkedEmailsSelect = el('select', { id: 'edit-linked-emails', multiple: true });
+  const projectEmails = entries.filter(e => e.project === entry.project && e.type === 'email');
+  const currentLinkedEmails = Array.isArray(entry.references && entry.references.linked_emails)
+    ? entry.references.linked_emails
+    : (entry.references && entry.references.linked_emails ? [entry.references.linked_emails] : []);
+  for (const emailEntry of projectEmails) {
+    const opt = el('option', { value: emailEntry.filename }, emailEntry.filename);
+    if (currentLinkedEmails.includes(emailEntry.filename)) opt.selected = true;
+    linkedEmailsSelect.appendChild(opt);
+  }
+  linkedEmailsRow.appendChild(linkedEmailsSelect);
+  if (projectEmails.length === 0) {
+    linkedEmailsRow.appendChild(el('div', { class: 'form-hint' }, 'No email entries in this project.'));
+  } else {
+    linkedEmailsRow.appendChild(el('div', { class: 'form-hint' }, 'Hold Ctrl/Cmd to select multiple.'));
+  }
+
   // Live filename preview
   const updatePreview = () => {
     const titleVal = titleInput.value;
@@ -399,6 +569,7 @@ export function showEditModal(entry) {
     el('label', { for: 'edit-body' }, 'Body'),
     bodyTextarea
   ));
+  form.appendChild(linkedEmailsRow);
 
   // Footer
   const saveBtn = el('button', { type: 'button', class: 'btn btn-primary' }, 'Save');
@@ -411,7 +582,16 @@ export function showEditModal(entry) {
     const author = authorInput.value.trim() || undefined;
     const body = bodyTextarea.value;
 
-    const updates = { title, date: dateStr, author, body };
+    // Collect linked emails
+    const selectedEmailFiles = Array.from(linkedEmailsSelect.selectedOptions).map(o => o.value);
+    const references = { ...(entry.references || {}) };
+    if (selectedEmailFiles.length > 0) {
+      references.linked_emails = selectedEmailFiles.length === 1 ? selectedEmailFiles[0] : selectedEmailFiles;
+    } else {
+      delete references.linked_emails;
+    }
+
+    const updates = { title, date: dateStr, author, body, references };
 
     if (entry.type === 'task') {
       updates.status = statusSelect.value;
