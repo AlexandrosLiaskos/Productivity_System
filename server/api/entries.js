@@ -1,8 +1,8 @@
 /** @module server/api/entries */
 
-import { readdir, readFile, writeFile, unlink, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile, unlink, stat, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PROJECTS_DIR, parseFilename, buildFilename, readJSON, writeJSON, sanitizeTitle, safePath } from './utils.js';
+import { PROJECTS_DIR, parseFilename, buildFilename, readJSON, writeJSON, sanitizeTitle, sanitizeEmailSubject, safePath } from './utils.js';
 
 /**
  * List entries, optionally filtered by project and/or type.
@@ -31,7 +31,12 @@ export async function listEntries({ project, type } = {}) {
 
       const entry = { ...parsed, project: dir, filename: file };
 
-      if (parsed.ext === 'json') {
+      if (parsed.type === 'email') {
+        // Email entries: read the .meta.json sidecar
+        const metaPath = join(dirPath, file.replace('.msg', '.meta.json'));
+        const meta = await readJSON(metaPath);
+        if (meta) Object.assign(entry, meta);
+      } else if (parsed.ext === 'json') {
         const content = await readJSON(join(dirPath, file));
         if (content) Object.assign(entry, content);
       } else {
@@ -54,10 +59,22 @@ export async function listEntries({ project, type } = {}) {
  * @returns {Promise<object|null>}
  */
 export async function readEntry(project, filename) {
-  const filePath = safePath(PROJECTS_DIR, project, filename);
   const parsed = parseFilename(filename);
   if (!parsed) return null;
 
+  if (parsed.type === 'email') {
+    // Email entries: read the .meta.json sidecar, not the .msg binary
+    const metaPath = safePath(PROJECTS_DIR, project, filename.replace('.msg', '.meta.json'));
+    try {
+      const meta = await readJSON(metaPath);
+      if (!meta) return null;
+      return { ...parsed, project, filename, ...meta };
+    } catch {
+      return null;
+    }
+  }
+
+  const filePath = safePath(PROJECTS_DIR, project, filename);
   try {
     const raw = await readFile(filePath, 'utf-8');
     if (parsed.ext === 'json') {
@@ -103,6 +120,16 @@ export async function updateEntry(project, oldFilename, updates) {
   const parsed = parseFilename(oldFilename);
   if (!parsed) throw new Error('Invalid filename');
 
+  // Email entries: only allow updating the .meta.json sidecar (references).
+  // Renaming (changing subject) is not permitted for email entries.
+  if (parsed.type === 'email') {
+    const metaPath = safePath(PROJECTS_DIR, project, oldFilename.replace('.msg', '.meta.json'));
+    const existing = (await readJSON(metaPath)) || {};
+    if (updates.references) existing.references = updates.references;
+    await writeJSON(metaPath, existing);
+    return oldFilename;
+  }
+
   const newParts = {
     title: updates.title ? sanitizeTitle(updates.title) : parsed.title,
     type: updates.type || parsed.type,
@@ -143,6 +170,19 @@ export async function updateEntry(project, oldFilename, updates) {
  * @param {string} filename
  */
 export async function deleteEntry(project, filename) {
+  const parsed = parseFilename(filename);
+
+  if (parsed && parsed.type === 'email') {
+    // Delete the .msg file
+    await unlink(safePath(PROJECTS_DIR, project, filename));
+    // Delete the .meta.json sidecar
+    try { await unlink(safePath(PROJECTS_DIR, project, filename.replace('.msg', '.meta.json'))); } catch { /* may not exist */ }
+    // Delete the attachments folder (folder name = filename without .msg)
+    const attachDir = safePath(PROJECTS_DIR, project, filename.replace('.msg', ''));
+    try { await rm(attachDir, { recursive: true, force: true }); } catch { /* may not exist */ }
+    return;
+  }
+
   await unlink(safePath(PROJECTS_DIR, project, filename));
 }
 
@@ -170,7 +210,10 @@ export async function searchEntries(query) {
     if (tags.status && (entry.status || '').toLowerCase() !== tags.status) return false;
     if (tags.author && (entry.author || '').toLowerCase() !== tags.author) return false;
     if (text) {
-      const haystack = [entry.title, entry.type, entry.author, entry.project, entry.body || ''].join(' ').toLowerCase();
+      const haystack = [
+        entry.title, entry.type, entry.author, entry.project, entry.body || '',
+        entry.from || '', (entry.to || []).join(' '), entry.bodyPreview || '',
+      ].join(' ').toLowerCase();
       if (!haystack.includes(text)) return false;
     }
     return true;
