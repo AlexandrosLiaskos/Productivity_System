@@ -1,7 +1,7 @@
 /** @module app/js/modules/modal */
 
 import { el, todayStamp, formatDate, humanizeTitle } from './utils.js';
-import { createEntry, updateEntry, deleteEntry, gitCommit } from './api.js';
+import { createEntry, updateEntry, deleteEntry, gitCommit, createProject } from './api.js';
 import { getState } from './state.js';
 
 // ----------------------------------------------------------------
@@ -86,6 +86,14 @@ export function showCreateModal() {
   for (const p of projects) {
     projectSelect.appendChild(el('option', { value: p.name }, p.name));
   }
+  projectSelect.appendChild(el('option', { value: '__new__' }, '+ New Project'));
+
+  // New project input (hidden by default)
+  const newProjectInput = el('input', { type: 'text', id: 'create-new-project', placeholder: 'Project_Name (underscored)', style: 'display:none;margin-top:4px' });
+  projectSelect.addEventListener('change', () => {
+    newProjectInput.style.display = projectSelect.value === '__new__' ? '' : 'none';
+    if (projectSelect.value === '__new__') newProjectInput.focus();
+  });
 
   // Title input
   const titleInput = el('input', { type: 'text', id: 'create-title', name: 'title', placeholder: 'Entry title', required: true });
@@ -142,7 +150,8 @@ export function showCreateModal() {
   // Build form rows
   form.appendChild(el('div', { class: 'form-row' },
     el('label', { for: 'create-project' }, 'Project'),
-    projectSelect
+    projectSelect,
+    newProjectInput
   ));
   form.appendChild(el('div', { class: 'form-row' },
     el('label', { for: 'create-title' }, 'Title'),
@@ -179,13 +188,24 @@ export function showCreateModal() {
   cancelBtn.addEventListener('click', closeModal);
 
   createBtn.addEventListener('click', async () => {
-    const project = projectSelect.value;
+    let project = projectSelect.value;
     const title = titleInput.value.trim();
     const type = typeSelect.value;
     const dateStr = dateInput.value.replace(/-/g, '');
     const author = authorInput.value.trim() || undefined;
     const status = statusSelect.value;
     const body = bodyTextarea.value;
+
+    // Handle new project creation
+    if (project === '__new__') {
+      const newName = newProjectInput.value.trim().replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (!newName) {
+        alert('Project name is required.');
+        newProjectInput.focus();
+        return;
+      }
+      project = newName;
+    }
 
     if (!project || !title || !type || !dateStr) {
       alert('Project, title, type, and date are required.');
@@ -194,6 +214,10 @@ export function showCreateModal() {
 
     createBtn.disabled = true;
     try {
+      // Create new project if needed
+      if (projectSelect.value === '__new__') {
+        await createProject({ name: project, status: 'in_progress', github_url: '', coordinator: '', created: dateStr, description: '' });
+      }
       await createEntry({ project, title, type, date: dateStr, author, status, body });
       closeModal();
       document.dispatchEvent(new CustomEvent('data:refresh'));
