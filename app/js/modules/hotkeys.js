@@ -2,6 +2,7 @@
 
 import { getState, setState } from './state.js';
 import { showCreateModal, closeModal } from './modal.js';
+import { showEmailLogger } from './email-logger.js';
 
 /**
  * Determine if a keyboard event originates from an editable field.
@@ -97,6 +98,13 @@ export function initHotkeys() {
     if (e.ctrlKey && e.key === 'n') {
       e.preventDefault();
       showCreateModal();
+      return;
+    }
+
+    // Ctrl+E — open email logger
+    if (e.ctrlKey && e.key === 'e') {
+      e.preventDefault();
+      showEmailLogger();
       return;
     }
 

@@ -12,6 +12,7 @@
     <div id="header-actions">
       <input type="search" id="search-input" placeholder="Search... project: type: status: (Ctrl+K)" aria-label="Search entries">
       <button id="btn-create" title="New Entry (Ctrl+N)">+ New</button>
+      <button id="btn-log-email" title="Log Email (Ctrl+E)">Log Email</button>
       <button id="btn-history" title="Action History">History</button>
       <button id="btn-git-commit" title="Git Commit">Commit</button>
       <button id="btn-git-push" title="Git Push">Push</button>
@@ -63,6 +64,8 @@
   <div id="tag-autocomplete" class="hidden">
     <ul id="tag-autocomplete-list"></ul>
   </div>
+
+  <div id="email-logger-overlay" class="email-logger-overlay hidden"></div>
 
   <script type="module" src="/js/app.js"></script>
 </body>

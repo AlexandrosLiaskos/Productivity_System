@@ -8,6 +8,7 @@ import { initModal, showDetailModal, showCreateModal, showCommitModal, showConfi
 import { initSearch } from './modules/search.js';
 import { initHistory } from './modules/history.js';
 import { initHotkeys } from './modules/hotkeys.js';
+import { showEmailLogger, initEmailLogger } from './modules/email-logger.js';
 
 /**
  * Load all data in parallel and push to state.
@@ -38,10 +39,21 @@ export function init() {
   initSearch();
   initHistory();
   initHotkeys();
+  initEmailLogger();
 
   // Header button bindings
   const btnCreate = document.getElementById('btn-create');
   if (btnCreate) btnCreate.addEventListener('click', showCreateModal);
+
+  const btnLogEmail = document.getElementById('btn-log-email');
+  if (btnLogEmail) {
+    if (!window.outlookAPI) {
+      btnLogEmail.disabled = true;
+      btnLogEmail.title = 'Outlook not available';
+    } else {
+      btnLogEmail.addEventListener('click', showEmailLogger);
+    }
+  }
 
   const btnCommit = document.getElementById('btn-git-commit');
   if (btnCommit) btnCommit.addEventListener('click', showCommitModal);
@@ -62,6 +74,14 @@ export function init() {
           }
         }
       );
+    });
+  }
+
+  // Electron menu shortcut handler
+  if (window.electronAPI && window.electronAPI.onShortcut) {
+    window.electronAPI.onShortcut(action => {
+      if (action === 'new') showCreateModal();
+      if (action === 'email-logger') showEmailLogger();
     });
   }
 

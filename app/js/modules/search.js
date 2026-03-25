@@ -7,7 +7,7 @@ import { getState, setState } from './state.js';
 /** Tag definitions with their possible values */
 const TAG_DEFS = {
   'project': () => getState().projects.map(p => p.name),
-  'type': () => ['task', 'log', 'note'],
+  'type': () => ['task', 'log', 'note', 'email'],
   'status': () => ['in_progress', 'queued', 'on_hold', 'completed', 'canceled'],
   'author': () => [...new Set(getState().entries.map(e => e.author).filter(Boolean))],
 };
