@@ -1,7 +1,7 @@
 {
   "name": "Productivity_System",
   "status": "in_progress",
-  "github_url": "",
+  "github_url": "https://github.com/AlexandrosLiaskos/Productivity_System",
   "coordinator": "liaskos",
   "created": "20260325",
   "description": "The productivity logging system itself — its design, schemas, web application, and infrastructure."
