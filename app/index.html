@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productivity System</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header id="header">
+    <h1>Productivity System</h1>
+    <div id="header-actions">
+      <input type="search" id="search-input" placeholder="Search... (Ctrl+K)" aria-label="Search entries">
+      <button id="btn-create" title="New Entry (Ctrl+N)">+ New</button>
+      <button id="btn-history" title="Action History">History</button>
+      <button id="btn-git-commit" title="Git Commit">Commit</button>
+      <button id="btn-git-push" title="Git Push">Push</button>
+    </div>
+  </header>
+
+  <nav id="filters">
+    <div id="filter-projects" class="filter-group">
+      <span class="filter-label">Projects:</span>
+    </div>
+    <div id="filter-types" class="filter-group">
+      <span class="filter-label">Types:</span>
+      <button class="filter-tag active" data-type="">All</button>
+      <button class="filter-tag" data-type="task">Tasks</button>
+      <button class="filter-tag" data-type="log">Logs</button>
+      <button class="filter-tag" data-type="note">Notes</button>
+    </div>
+  </nav>
+
+  <main id="timeline">
+    <table id="entries-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Project</th>
+          <th class="col-status">Status</th>
+        </tr>
+      </thead>
+      <tbody id="entries-body"></tbody>
+    </table>
+    <p id="empty-state" class="hidden">No entries found.</p>
+  </main>
+
+  <div id="modal-overlay" class="hidden">
+    <div id="modal" role="dialog" aria-modal="true">
+      <div id="modal-header">
+        <h2 id="modal-title"></h2>
+        <button id="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div id="modal-body"></div>
+      <div id="modal-footer"></div>
+    </div>
+  </div>
+
+  <aside id="history-panel" class="hidden">
+    <div id="history-header">
+      <h2>Action History</h2>
+      <button id="history-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="history-actions">
+      <button id="btn-clear-history">Clear All</button>
+    </div>
+    <ul id="history-list"></ul>
+  </aside>
+
+  <div id="search-results" class="hidden">
+    <ul id="search-list"></ul>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
