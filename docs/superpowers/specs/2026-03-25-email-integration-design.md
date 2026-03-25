@@ -67,13 +67,32 @@ The existing regex must be extended to include `email`:
 /^(.+)\.(task|log|note|email)\.(?:([a-z]+)\.)?(\d{8})\.(json|md|msg)$/
 ```
 
+After parsing, `parseFilename` must cross-validate type/extension pairs: `task`→`json`, `log`→`json`, `note`→`md`, `email`→`msg`. Reject any mismatch.
+
+Note: `.meta.json` sidecar files do NOT match this regex (their extension is `.meta.json`, not `.json`), so they are naturally skipped by the directory iterator. To read a sidecar, construct the path as `filename.replace('.msg', '.meta.json')`.
+
+### `buildFilename` update
+
+`buildFilename` must handle `type === 'email'` returning `msg` extension:
+
+```js
+const ext = type === 'note' ? 'md' : type === 'email' ? 'msg' : 'json';
+```
+
+### Email subject sanitization
+
+Email subjects are sanitized via `sanitizeTitle` but with additional rules:
+- **Max 80 characters** after sanitization (truncate)
+- **Empty fallback**: if sanitized result is empty (e.g., subject was `[???]`), use `no_subject`
+- **Duplicate handling**: if the resulting filename already exists in the target project, append `_2`, `_3`, etc. to the subject component
+
 ### Tracking already-logged emails
 
 The `outlookEntryId` field in `.meta.json` files is the unique identifier. When browsing Outlook folders, the app collects all `outlookEntryId` values from existing `.meta.json` files across all projects and checks incoming email lists against them.
 
 ## Outlook Bridge — PowerShell Scripts
 
-Located at `server/outlook/`. Each script is invoked by Electron's main process via `execFile('powershell.exe', ['-File', scriptPath, ...args])`. Output is JSON on stdout.
+Located at `server/outlook/`. Each script is invoked by Electron's main process via `execFile('powershell.exe', ['-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args], { timeout: 30000 })`. Output is JSON on stdout. All scripts require PowerShell 5.1+ (built into Windows 10/11).
 
 ### `list-folders.ps1`
 
@@ -96,9 +115,10 @@ Located at `server/outlook/`. Each script is invoked by Electron's main process 
 ### `export-email.ps1`
 
 - Input: `-EntryId <id>` `-DestPath <path>` `-MsgFilename <filename>`
-- Output: `{ "msgPath": "...", "attachments": ["path1", "path2"] }`
-- Saves the .msg file to DestPath using Outlook's `SaveAs` method (olMSG format = 3)
-- Saves all attachments to a subfolder named after the entry (same name as .msg without extension)
+- `DestPath` is the absolute path to the project folder. The script saves `{DestPath}\{MsgFilename}` and creates attachments at `{DestPath}\{MsgFilename without .msg}\`
+- Output: `{ "msgPath": "...", "attachments": ["filename1.pdf", "filename2.docx"] }` (attachment values are bare filenames, no path separators)
+- Saves the .msg file using Outlook's `SaveAs` method (olMSG format = 3)
+- Saves all attachments to the subfolder
 
 ### Error handling
 
@@ -106,13 +126,16 @@ All scripts wrap operations in try/catch and output `{ "error": "message" }` on 
 
 ### Outlook availability check
 
-Before showing the email logger, the app runs a quick check:
+On app startup, a lightweight registry check determines if Outlook is installed (without launching it):
 ```powershell
-try { New-Object -ComObject Outlook.Application | Out-Null; Write-Output '{"available":true}' }
-catch { Write-Output '{"available":false,"error":"Outlook is not available"}' }
+try {
+  $key = Get-Item 'HKLM:\SOFTWARE\Microsoft\Office\*\Outlook' -ErrorAction SilentlyContinue
+  if ($key) { Write-Output '{"available":true}' }
+  else { Write-Output '{"available":false,"error":"Outlook not installed"}' }
+} catch { Write-Output '{"available":false,"error":"Check failed"}' }
 ```
 
-If Outlook isn't running or installed, the "Log Email" button is disabled with a tooltip explaining why.
+If Outlook isn't installed, the "Log Email" button is disabled with a tooltip. The full COM connection (which may launch Outlook) only happens when the user actually clicks "Log Email".
 
 ## Electron IPC Channels
 
@@ -125,13 +148,17 @@ If Outlook isn't running or installed, the "Log Email" button is disabled with a
 | `outlook:log-emails` | renderer → main → renderer | Export selected emails to project folder |
 | `outlook:get-tracked-ids` | renderer → main → renderer | Get all outlookEntryIds from existing .meta.json files |
 
-The main process handles these via `ipcMain.handle()`. The preload script exposes them via `contextBridge.exposeInMainWorld()`.
+The main process handles these via `ipcMain.handle()`. The preload script exposes them under a new `outlookAPI` namespace via `contextBridge.exposeInMainWorld('outlookAPI', {...})`, separate from the existing `electronAPI`.
+
+### `outlook:get-tracked-ids` implementation
+
+The main process calls the internal HTTP API (`GET /api/entries?type=email`) and extracts `outlookEntryId` from each result's metadata. This avoids duplicating filesystem logic.
 
 ## Frontend UI
 
 ### Header
 
-New button: **"Log Email"** — added after "+ New", before "History". Hotkey: **Ctrl+E**.
+New button: **"Log Email"** — added after "+ New", before "History". Hotkey: **Ctrl+E** (registered as a menu accelerator in `buildMenu`, sending `shortcut:email-logger` to the renderer — same pattern as Ctrl+N and Ctrl+K).
 
 Disabled with tooltip "Outlook not available" if the COM check fails.
 
@@ -180,7 +207,7 @@ A modal with two panels side by side (stacked on mobile):
 When clicking an `email` entry in the timeline, the existing detail modal shows:
 - From, To, CC, Date, Subject (from .meta.json)
 - Body preview (from .meta.json `bodyPreview` or parsed from .msg)
-- Attachments: listed with filenames, clickable to open via system default app
+- Attachments: listed with filenames, clickable to open via `shell.openPath`. Attachment filenames in `.meta.json` are bare filenames only (no path separators). Before opening, the full path is constructed via `safePath(PROJECTS_DIR, project, attachmentsFolder, filename)` to prevent path traversal
 - Linked entries: shown as clickable references
 - Edit button: allows editing references (link to tasks/logs/notes)
 - Delete button: removes .msg + .meta.json + attachments folder
@@ -189,11 +216,12 @@ When clicking an `email` entry in the timeline, the existing detail modal shows:
 
 **From email (at log time or in edit):** optional dropdown to link to existing entries in the same project.
 
-**From entry (edit modal):** new optional "Linked Emails" field — dropdown of email entries in the same project. Selected links are stored in the entry's `references` object:
+**From entry (edit modal):** new optional "Linked Emails" field — dropdown of email entries in the same project. The `references` object is a freeform key/value map. Values can be a single filename string or an array of filenames for multiple links:
 ```json
 {
   "references": {
-    "linked_email": "Meeting_Subject.email.liaskos.20260315.msg"
+    "origin_note": "Some_Note.note.liaskos.20260315.md",
+    "linked_emails": ["Meeting1.email.liaskos.20260315.msg", "Meeting2.email.liaskos.20260316.msg"]
   }
 }
 ```
@@ -215,11 +243,12 @@ When clicking an `email` entry in the timeline, the existing detail modal shows:
 
 ### `server/api/entries.js`
 
-- `listEntries`: for `email` type, read the `.meta.json` sidecar instead of the `.msg` binary
-- `readEntry`: for emails, return parsed `.meta.json` content
-- `createEntry`: for emails, this is handled by the Electron export flow, not the HTTP API
-- `deleteEntry`: for emails, also delete `.meta.json` and the attachments folder
-- `searchEntries`: include email metadata in search haystack
+- `listEntries`: for `email` type, read the `.meta.json` sidecar (path: `filename.replace('.msg', '.meta.json')`) instead of the `.msg` binary. Return sidecar fields merged with parsed filename fields.
+- `readEntry`: for emails, return parsed `.meta.json` content (never read the `.msg` binary through the HTTP API).
+- `createEntry`: for emails, this is handled by the Electron export flow, not the HTTP API. After `export-email.ps1` completes, the **Electron main process** writes the `.meta.json` sidecar using metadata from the `preview-email.ps1` output combined with user-chosen project/references.
+- `updateEntry`: for `email` type, reads and writes the `.meta.json` sidecar only — never touches the `.msg` binary. Renaming (changing subject) is not permitted for email entries; only `references` and metadata can be updated.
+- `deleteEntry`: for emails, must delete three things: the `.msg` file, the `.meta.json` sidecar, and recursively delete the attachments folder (folder name = `.msg` filename with `.msg` stripped). All paths constructed via `safePath`.
+- `searchEntries`: email search haystack includes: `entry.title`, `entry.type`, `entry.author`, `entry.project`, `entry.from`, `(entry.to || []).join(' ')`, `entry.bodyPreview || ''`
 
 ### Frontend modules
 
