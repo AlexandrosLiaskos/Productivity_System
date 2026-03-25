@@ -543,7 +543,7 @@ server.tool(
     type: z.enum(['task', 'log', 'note']).describe('Entry type'),
     date: z.string().regex(/^\d{8}$/).describe('Date in YYYYMMDD format'),
     author: z.string().optional().describe('Author identifier'),
-    status: z.enum(['queued', 'active', 'done', 'cancelled']).optional().describe('Task status (tasks only)'),
+    status: z.enum(['queued', 'in_progress', 'on_hold', 'completed', 'canceled']).optional().describe('Task status (tasks only)'),
     deadline: z.string().regex(/^\d{8}$/).optional().describe('Deadline in YYYYMMDD format (tasks only)'),
     body: z.string().optional().describe('Entry body content'),
   },
